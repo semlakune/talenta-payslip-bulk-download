@@ -21,8 +21,8 @@ Workflow n8n untuk download semua payslip dari Mekari Talenta secara otomatis da
 ### 1. Clone Repository
 
 ```bash
-git clone <repo-url>
-cd n8n-talenta-payslip-bulk-download
+git clone https://github.com/semlakune/talenta-payslip-bulk-download.git
+cd talenta-payslip-bulk-download
 ```
 
 ### 2. Jalankan n8n
