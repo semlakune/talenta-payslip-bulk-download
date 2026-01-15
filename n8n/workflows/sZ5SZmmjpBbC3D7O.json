@@ -1,0 +1,246 @@
+{
+  "name": "Talenta Download Payslip",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        5904,
+        2304
+      ],
+      "id": "ed6ceea9-08ec-42cd-a13b-a146228a6e00",
+      "name": "When clicking 'Execute workflow'"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "year-param",
+              "name": "year",
+              "value": "2023",
+              "type": "string"
+            },
+            {
+              "id": "manual-cookie",
+              "name": "cookie",
+              "value": "=",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        6128,
+        2304
+      ],
+      "id": "config-node",
+      "name": "Config",
+      "notesInFlow": true,
+      "notes": "set cookie from Talenta manually here"
+    },
+    {
+      "parameters": {
+        "url": "=https://hr.talenta.co/api/web/payslip/detail?year={{ $json.year }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Cookie",
+              "value": "={{ $json.cookie }}"
+            },
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json, text/plain, */*"
+            },
+            {
+              "name": "Referer",
+              "value": "https://hr.talenta.co/employee/payslip"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "71cfb04e-dcd7-44e4-8766-4ea8f239b22e",
+      "name": "Fetch Payslip List",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        6352,
+        2304
+      ],
+      "typeVersion": 4.2
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.data;\nconst cookie = $('Config').first().json.cookie;\nconst parsed = JSON.parse(raw);\nconst periods = (parsed.data.periods || []).filter(p => p.id);\n\nreturn periods.map(p => ({\n  json: {\n    id: p.id, type: p.slip_type, month: p.month,\n    year: parsed.data.periodYear, period: p.period,\n    period_name: p.period_name, cookie: cookie\n  }\n}));"
+      },
+      "id": "99a6cc5c-9ef8-4b36-95a5-b0ae8039f38c",
+      "name": "Extract Payslip Data",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        6576,
+        2304
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "url": "=https://hr.talenta.co/report/payslip?id={{ $json.id }}&type={{ $json.type }}&month={{ $json.month }}&year={{ $json.year }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Cookie",
+              "value": "={{ $json.cookie }}"
+            },
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "Accept",
+              "value": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+            },
+            {
+              "name": "Referer",
+              "value": "https://hr.talenta.co/employee/payslip"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        6800,
+        2304
+      ],
+      "id": "download-payslip-pdf",
+      "name": "Download Payslip PDF"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const binaryData = $binary.data;\nconst id = $json.id;\nconst month = $json.month;\nconst year = $json.year;\nconst newFileName = `Payslip-${id}-${month}-${year}.pdf`;\n\nreturn {\n  json: { id, month, year, fileName: newFileName, fileExtension: 'pdf', mimeType: 'application/pdf' },\n  binary: { data: { ...binaryData, fileName: newFileName } }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        7024,
+        2304
+      ],
+      "id": "f75874c4-c2e4-4fad-851a-971e2bbf6b08",
+      "name": "Rename PDF Files"
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "=/data/payslips/{{ $json.fileName }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [
+        7248,
+        2304
+      ],
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+      "name": "Save to Disk"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking 'Execute workflow'": {
+      "main": [
+        [
+          {
+            "node": "Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Config": {
+      "main": [
+        [
+          {
+            "node": "Fetch Payslip List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Payslip List": {
+      "main": [
+        [
+          {
+            "node": "Extract Payslip Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Payslip Data": {
+      "main": [
+        [
+          {
+            "node": "Download Payslip PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Payslip PDF": {
+      "main": [
+        [
+          {
+            "node": "Rename PDF Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rename PDF Files": {
+      "main": [
+        [
+          {
+            "node": "Save to Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "bbc67197-e8fc-4243-bce3-bcb5a9f451fe",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "558d88703fb65b2d0e44613bc35916258b0f0bf983c5d4730c00c424b77ca36a"
+  },
+  "id": "sZ5SZmmjpBbC3D7O",
+  "tags": []
+}
